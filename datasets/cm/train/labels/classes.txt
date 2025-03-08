@@ -1,0 +1,4 @@
+ripe
+unripe
+flower
+rotten

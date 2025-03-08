@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h1>显示图书</h1>
+{#thead表示的是表头，th是表头加粗#}
+<table cellspacing="0" border="1">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>书名</th>
+            <th>出版社</th>
+            <th>定价</th>
+            <th>零售价</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for book in books %}
+            <tr>
+                <td>{{ book.id }}</td>
+                <td>{{ book.title }}</td>
+                <td>{{ book.pub }}</td>
+                <td>{{ book.price }}</td>
+                <td>{{ book.market_price }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</body>
+</html>
