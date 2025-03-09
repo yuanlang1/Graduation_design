@@ -26,7 +26,6 @@ urlpatterns = [
     path('server/', server.index),
     path('music/', include('music.urls')),
     path('user/', include('user_inf.urls')),
-    path('ai/', include('ai.urls')),
     path('home/', include('home.urls')),
     path('Course_manage/', include('Course_manage.urls')),
     path('Teacher_manage/', include('Teacher_manage.urls')),
