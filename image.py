@@ -3,7 +3,7 @@ import torch
 from ultralytics import YOLO
 
 # 1. 加载训练好的 YOLOv8 模型
-model = YOLO("yolo/best.pt")
+model = YOLO("mysite/yolo/best.pt")
 
 # 2. 读取课堂图片
 image_path = "0.jpg"  # 替换为你的图片路径

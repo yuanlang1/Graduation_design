@@ -72,9 +72,11 @@ class RecognitionResult(models.Model):
     # course_name = models.CharField(max_length=255, null=False, blank=True, verbose_name="课程名称")
     estimate = models.CharField(max_length=20, null=False, blank=True, verbose_name="专注度评估")
     dtime = models.DateTimeField(null=False, blank=False, verbose_name="评价时间")
-    rawpic = models.CharField(max_length=255, null=False, blank=True, verbose_name="原始数据")  # VARCHAR 默认设置较大的长度
+    rawpic = models.CharField(max_length=255, null=False, blank=True, verbose_name="原始数据")
     resultpic = models.CharField(max_length=255, null=False, blank=True,
-                                 verbose_name="识别结果数据")  # VARCHAR 默认设置较大的长度
+                                 verbose_name="识别结果数据")
+    result = models.CharField(max_length=255, null=True, blank=True,
+                                 verbose_name="识别数据")
 
     class Meta:
         verbose_name = "识别结果信息"

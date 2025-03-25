@@ -1,7 +1,9 @@
 import json
+import math
 import time
 import shutil
 
+import cv2
 from PIL import Image
 from django.core.files import File
 from django.db import connection
@@ -16,6 +18,10 @@ from django.core.files.storage import FileSystemStorage
 # import numpy as np
 import random
 from django.conf import settings
+from .tasks  import process_classroom_detection
+import ffmpeg
+from ultralytics import YOLO
+from celery.result import AsyncResult
 
 
 def upload_image(request):
@@ -68,6 +74,24 @@ def upload_image(request):
     return JsonResponse({'code': 405, 'msg': '仅支持 POST 请求'}, status=405)
 
 
+def get_json(request, filename):
+    # 确保 JSON 文件路径正确
+    json_path = os.path.join(settings.BASE_DIR, "static", "result_json", filename)
+    print(json_path)
+
+    # 检查文件是否存在
+    if not os.path.exists(json_path):
+        return JsonResponse({"error": "文件不存在"}, status=404)
+
+    try:
+        # 读取 JSON 文件
+        with open(json_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({"error": f"读取 JSON 失败: {str(e)}"}, status=500)
+
+
 def classrooms(request):
     try:
         query = """
@@ -82,7 +106,8 @@ def classrooms(request):
                         re.rawpic,
                         re.resultpic,
                         re.dtime,
-                        re.estimate
+                        re.estimate,
+                        re.result
                     FROM 
                         home_courseinfo ci,
                         home_classroomstatus cs,
@@ -139,7 +164,8 @@ def classrooms(request):
                     'detect_time': row[9],
                     'estimate': row[10],
                     'rawpic': row[7],
-                    'resultpic': row[8]
+                    'resultpic': row[8],
+                    'result_json': row[11]
                 })
             print(filtered_rows)
 
@@ -156,8 +182,10 @@ def classrooms(request):
                     'detect_time': row[9],
                     'estimate': row[10],
                     'rawpic': row[7],
-                    'resultpic': row[8]
+                    'resultpic': row[8],
+                    'result_json': row[11]
                 })
+        print(filtered_rows)
         return JsonResponse({
             'code': 200,
             'data': filtered_rows
@@ -169,95 +197,23 @@ def classrooms(request):
 
 def Add_classrooms(request):
     data = json.loads(request.body.decode('utf-8'))
-    class_name = data.get('className', '').strip()
-    course_name = data.get('courseName', '').strip()
-    teacher_name = data.get('teacherName', '').strip()
-    course_time = data.get('dtime', '').strip()
-    url = data.get('rawpic', '').strip()
-    print(1)
-    print("class_name:", class_name)
-    print("course_name:", course_name)
-    print("teacher_name:", teacher_name)
-    print("course_time:", course_time)
-    print("url:", url)
+    # 提交任务到 Celery 队列
+    task = process_classroom_detection.delay(data)
+    # 返回任务ID，前端可据此查询任务进度
+    return JsonResponse({
+        'code': 200,
+        'msg': '任务已提交',
+        'task_id': task.id
+    })
 
-    course = CourseInfo.objects.filter(
-        course_name=course_name,
-        class_name=class_name,
-        teacher_name=teacher_name
-    ).first()
 
-    print("course:", course)
-
-    # 存在该课程
-    if course:
-        print("存在该课程")
-        course_id = course.id
-        class_status = ClassroomStatus.objects.filter(course_id=course_id).first()
-        print("class_status", class_status)
-        estimate = 100
-        now = timezone.now()
-
-        time = now.replace(microsecond=0)
-        print(time)
-
-        # 复制 rawpic 文件到 static/resultpic 目录
-        rawpic_path = os.path.join(settings.BASE_DIR, "static", "rawpic", url.lstrip('/'))
-        if not os.path.exists(rawpic_path):
-            return JsonResponse({'code': 400, 'msg': '原始图片文件不存在'}, status=400)
-        print("rawpic_path:", rawpic_path)
-
-        # 确保 static/resultpic 目录存在
-        resultpic_path = os.path.join(settings.BASE_DIR, "static", "resultpic")
-        if not os.path.exists(resultpic_path):
-            os.makedirs(resultpic_path)
-        print("resultpic_dir:", resultpic_path)
-
-        shutil.copy2(rawpic_path, resultpic_path)
-
-        # 使用 FileSystemStorage 管理 resultpic 文件
-        fs_result = FileSystemStorage(location=resultpic_path)
-        resultpic_url = fs_result.url(url)
-
-        # 创建新的检测结果
-        recognition = RecognitionResult(
-            class_id=course_id,
-            estimate=estimate,
-            dtime=time,
-            rawpic=url,
-            resultpic=resultpic_url
-        )
-        try:
-            recognition.save()
-        except Exception as e:
-            print("1", e)
-        # 存在该课堂
-        if class_status:
-            class_status.estimate = estimate
-            class_status.dtime = time
-            try:
-                class_status.save()
-            except Exception as e:
-                print("2", e)
-        else:
-            class_status = ClassroomStatus(
-                course_id=course_id,
-                estimate=estimate,
-                dtime=time
-            )
-            try:
-                class_status.save()
-            except Exception as e:
-                print("2", e)
-
-        return JsonResponse({
-            'code': 200,
-            'msg': '添加成功',
-            'data': {'id': course_id}
-        })
-
-    else:
-        return JsonResponse({'code': 404, 'msg': '添加失败'}, status=404)
+def task_status(request, task_Id):
+    result = AsyncResult(task_Id)
+    return JsonResponse({
+        'task_id': task_Id,
+        'state': result.state,
+        'result': result.result
+    })
 
 
 def Delete_classrooms(request, id):

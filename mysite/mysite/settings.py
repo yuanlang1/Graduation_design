@@ -137,9 +137,9 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 HOSTS_DOMAIN = f'http://{ALLOWED_HOSTS[0]}:8000'
 
-CORS_ALLOW_ALL_ORIGINS = True
+# 允许指定来源跨域
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",  # 前端开发服务器的地址
+    'http://localhost:8080',  # 修改为你的前端地址
 ]
 
 CACHES = {
@@ -147,3 +147,10 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
+CORS_ALLOW_HEADERS = ['*']
+CORS_EXPOSE_HEADERS = ['*']
+
+# settings.py
+CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672/'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # 结果存储
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
